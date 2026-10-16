@@ -223,6 +223,30 @@ export interface OrderResponse {
   items: OrderItemResponse[];
 }
 
+export interface OrderItemResponse {
+  id: string;
+  order_id: string;
+  product_id: string;
+  product_name: string;
+  unit_price: string;
+  quantity: number;
+}
+
+export interface OrderResponse {
+  id: string;
+  user_id: string;
+  status: string;
+  total_amount: string;
+  items: OrderItemResponse[];
+}
+
+export interface OrderSummaryResponse {
+  id: string;
+  user_id: string;
+  status: string;
+  total_amount: string;
+  created_at: string;
+}
 // ---------- Authentication API ----------
 
 export const authApi = {
@@ -301,4 +325,32 @@ export const orderApi = {
       }
     );
   },
+  listOrders(accessToken: string): Promise<OrderSummaryResponse[]> {
+  return request<OrderSummaryResponse[]>(
+    ORDER_SERVICE_URL,
+    "/api/v1/orders",
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    }
+  );
+},
+  getOrder(
+    accessToken: string,
+    orderId: string
+  ): Promise<OrderResponse> {
+    return request<OrderResponse>(
+      ORDER_SERVICE_URL,
+      `/api/v1/orders/${encodeURIComponent(orderId)}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  },
 };
+
