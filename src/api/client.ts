@@ -6,6 +6,9 @@ const AUTH_SERVICE_URL =
 
 const CART_SERVICE_URL =
   import.meta.env.VITE_CART_SERVICE_URL || "http://localhost:8005";
+
+const ORDER_SERVICE_URL =
+  import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:8006";
   // ---------- API Types ----------
 
 export interface RegisterRequest {
@@ -203,6 +206,23 @@ export const cartApi = {
   },
 };
 
+export interface OrderItemResponse {
+  id: string;
+  order_id: string;
+  product_id: string;
+  product_name: string;
+  unit_price: string;
+  quantity: number;
+}
+
+export interface OrderResponse {
+  id: string;
+  user_id: string;
+  status: string;
+  total_amount: string;
+  items: OrderItemResponse[];
+}
+
 // ---------- Authentication API ----------
 
 export const authApi = {
@@ -261,6 +281,23 @@ export const authApi = {
       {
         method: "POST",
         credentials: "include",
+      }
+    );
+  },
+};
+
+// ---------- Order API ----------
+
+export const orderApi = {
+  createOrder(accessToken: string): Promise<OrderResponse> {
+    return request<OrderResponse>(
+      ORDER_SERVICE_URL,
+      "/api/v1/orders",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       }
     );
   },
