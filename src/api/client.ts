@@ -9,6 +9,9 @@ const CART_SERVICE_URL =
 
 const ORDER_SERVICE_URL =
   import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:8006";
+
+const USER_SERVICE_URL =
+  import.meta.env.VITE_USER_SERVICE_URL || "http://localhost:8002";
   // ---------- API Types ----------
 
 export interface RegisterRequest {
@@ -354,3 +357,48 @@ export const orderApi = {
   },
 };
 
+export interface UserProfile {
+  id: string;
+  auth_user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+}
+
+export interface UpdateUserProfileRequest {
+  first_name: string;
+  last_name: string;
+  phone: string;
+}
+
+export const userApi = {
+  getProfile(accessToken: string): Promise<UserProfile> {
+    return request<UserProfile>(
+      USER_SERVICE_URL,
+      "/api/v1/users/me",
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  },
+
+  updateProfile(
+    accessToken: string,
+    payload: UpdateUserProfileRequest
+  ): Promise<UserProfile> {
+    return request<UserProfile>(
+      USER_SERVICE_URL,
+      "/api/v1/users/me",
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+  },
+};
