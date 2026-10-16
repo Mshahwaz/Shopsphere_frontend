@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { cartApi, productApi } from "../api/client";
+import {
+  cartApi,
+  productApi,
+  type Cart as CartResponse,
+  type CartItem,
+} from "../api/client";
+
 import { useAuth } from "../auth/AuthContext";
 
 interface Product {
@@ -25,69 +31,117 @@ function Cart() {
   const [items, setItems] = useState<CartLine[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
+  const [busyProductId, setBusyProductId] = useState<string | null>(
+    null
+  );
 
-  useEffect(() => {
-    let active = true;
-
-    async function loadCart() {
-      setLoading(true);
-      setError("");
-
-      try {
-        if (!accessToken) {
-          throw new Error("You must log in to view your cart.");
-        }
-
-        const cart = await cartApi.getCart(accessToken);
-
-        const productResults = await Promise.all(
-          cart.items.map(async (item) => {
-            const product = await productApi.get<Product>(
-              `/api/v1/products/${item.product_id}`
-            );
-
-            return {
-              productId: item.product_id,
-              name: product.name,
-              price: Number(product.price),
-              quantity: item.quantity,
-            };
-          })
-        );
-
-        if (active) {
-          setItems(productResults);
-        }
-      } catch (err: unknown) {
-        if (!active) {
-          return;
-        }
-
-        const message =
-          err instanceof Error ? err.message : "";
-
-        // Only this specific backend response represents an empty cart.
-        if (message.includes("Cart not found")) {
-          setItems([]);
-          setError("");
-        } else {
-          setError(
-            message || "Unable to load your cart. Please try again."
-          );
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
+  const loadCart = useCallback(async () => {
+    if (!accessToken) {
+      setItems([]);
+      setError("You must log in to view your cart.");
+      setLoading(false);
+      return;
     }
 
-    void loadCart();
+    setLoading(true);
+    setError("");
 
-    return () => {
-      active = false;
-    };
+    try {
+      const cart: CartResponse = await cartApi.getCart(accessToken);
+
+      const productResults = await Promise.all(
+        cart.items.map(async (item: CartItem) => {
+          const product = await productApi.get<Product>(
+            `/api/v1/products/${item.product_id}`
+          );
+
+          return {
+            productId: item.product_id,
+            name: product.name,
+            price: Number(product.price),
+            quantity: item.quantity,
+          };
+        })
+      );
+
+      setItems(productResults);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "";
+
+      if (message.includes("Cart not found")) {
+        setItems([]);
+        setError("");
+      } else {
+        setError(message || "Unable to load your cart.");
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [accessToken]);
+
+  useEffect(() => {
+    void loadCart();
+  }, [loadCart]);
+
+  async function handleQuantityChange(
+    productId: string,
+    currentQuantity: number,
+    change: number
+  ) {
+    const newQuantity = currentQuantity + change;
+
+    if (newQuantity < 1) {
+      return;
+    }
+
+    if (!accessToken || busyProductId !== null) {
+      return;
+    }
+
+    setBusyProductId(productId);
+    setActionError("");
+
+    try {
+      await cartApi.updateItem(accessToken, productId, {
+        quantity: newQuantity,
+      });
+
+      // Refresh server-backed cart data after a successful update.
+      await loadCart();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Unable to update product quantity."
+      );
+    } finally {
+      setBusyProductId(null);
+    }
+  }
+
+  async function handleRemoveItem(productId: string) {
+    if (!accessToken || busyProductId !== null) {
+      return;
+    }
+
+    setBusyProductId(productId);
+    setActionError("");
+
+    try {
+      await cartApi.removeItem(accessToken, productId);
+
+      await loadCart();
+    } catch (err: unknown) {
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : "Unable to remove this product."
+      );
+    } finally {
+      setBusyProductId(null);
+    }
+  }
 
   const formatPrice = (amount: number) =>
     new Intl.NumberFormat("en-IN", {
@@ -125,7 +179,7 @@ function Cart() {
         <button
           type="button"
           className="btn btn-primary"
-          onClick={() => window.location.reload()}
+          onClick={() => void loadCart()}
         >
           Try Again
         </button>
@@ -137,6 +191,12 @@ function Cart() {
     return (
       <div className="container py-5">
         <h1 className="h2 mb-4">Shopping Cart</h1>
+
+        {actionError && (
+          <div className="alert alert-danger" role="alert">
+            {actionError}
+          </div>
+        )}
 
         <div className="alert alert-info">
           Your cart is empty.
@@ -153,6 +213,12 @@ function Cart() {
     <div className="container py-5">
       <h1 className="h2 mb-4">Shopping Cart</h1>
 
+      {actionError && (
+        <div className="alert alert-danger" role="alert">
+          {actionError}
+        </div>
+      )}
+
       <div className="table-responsive">
         <table className="table table-bordered align-middle">
           <thead className="table-light">
@@ -161,23 +227,85 @@ function Cart() {
               <th scope="col">Price</th>
               <th scope="col">Quantity</th>
               <th scope="col">Subtotal</th>
+              <th scope="col">Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {items.map((item) => (
-              <tr key={item.productId}>
-                <td>{item.name}</td>
+            {items.map((item) => {
+              const busy = busyProductId === item.productId;
 
-                <td>{formatPrice(item.price)}</td>
+              return (
+                <tr key={item.productId}>
+                  <td>{item.name}</td>
 
-                <td>{item.quantity}</td>
+                  <td>{formatPrice(item.price)}</td>
 
-                <td>
-                  {formatPrice(item.price * item.quantity)}
-                </td>
-              </tr>
-            ))}
+                  <td>
+                    <div
+                      className="d-flex align-items-center gap-2"
+                      aria-label={`Quantity for ${item.name}`}
+                    >
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        aria-label={`Decrease ${item.name} quantity`}
+                        disabled={busy || item.quantity <= 1}
+                        onClick={() =>
+                          void handleQuantityChange(
+                            item.productId,
+                            item.quantity,
+                            -1
+                          )
+                        }
+                      >
+                        −
+                      </button>
+
+                      <span
+                        className="text-center"
+                        style={{ minWidth: "2rem" }}
+                      >
+                        {item.quantity}
+                      </span>
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary btn-sm"
+                        aria-label={`Increase ${item.name} quantity`}
+                        disabled={busy}
+                        onClick={() =>
+                          void handleQuantityChange(
+                            item.productId,
+                            item.quantity,
+                            1
+                          )
+                        }
+                      >
+                        +
+                      </button>
+                    </div>
+                  </td>
+
+                  <td>
+                    {formatPrice(item.price * item.quantity)}
+                  </td>
+
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger btn-sm"
+                      disabled={busy}
+                      onClick={() =>
+                        void handleRemoveItem(item.productId)
+                      }
+                    >
+                      {busy ? "Updating..." : "Remove"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
 
           <tfoot>
@@ -186,7 +314,7 @@ function Cart() {
                 Total
               </th>
 
-              <th>{formatPrice(total)}</th>
+              <th colSpan={2}>{formatPrice(total)}</th>
             </tr>
           </tfoot>
         </table>
