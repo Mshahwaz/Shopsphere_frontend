@@ -4,7 +4,9 @@ const PRODUCT_SERVICE_URL =
 const AUTH_SERVICE_URL =
   import.meta.env.VITE_AUTH_SERVICE_URL || "http://localhost:8001";
 
-// ---------- API Types ----------
+const CART_SERVICE_URL =
+  import.meta.env.VITE_CART_SERVICE_URL || "http://localhost:8005";
+  // ---------- API Types ----------
 
 export interface RegisterRequest {
   email: string;
@@ -110,6 +112,93 @@ export const productApi = {
   delete<T>(path: string) {
     return request<T>(PRODUCT_SERVICE_URL, path, {
       method: "DELETE",
+    });
+  },
+};
+
+
+export interface CartItem {
+  id: string;
+  cart_id: string;
+  product_id: string;
+  quantity: number;
+}
+
+export interface Cart {
+  id: string;
+  user_id: string;
+  items: CartItem[];
+}
+
+export interface AddCartItemRequest {
+  product_id: string;
+  quantity: number;
+}
+
+export interface UpdateCartItemRequest {
+  quantity: number;
+}
+
+export const cartApi = {
+  getCart(accessToken: string): Promise<Cart> {
+    return request<Cart>(CART_SERVICE_URL, "/api/v1/cart", {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+  },
+
+  addItem(
+    accessToken: string,
+    body: AddCartItemRequest
+  ): Promise<CartItem> {
+    return request<CartItem>(CART_SERVICE_URL, "/api/v1/cart/items", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateItem(
+    accessToken: string,
+    productId: string,
+    body: UpdateCartItemRequest
+  ): Promise<CartItem> {
+    return request<CartItem>(
+      CART_SERVICE_URL,
+      `/api/v1/cart/items/${productId}`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+      }
+    );
+  },
+
+  removeItem(accessToken: string, productId: string): Promise<void> {
+    return request<void>(
+      CART_SERVICE_URL,
+      `/api/v1/cart/items/${productId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+  },
+
+  clearCart(accessToken: string): Promise<void> {
+    return request<void>(CART_SERVICE_URL, "/api/v1/cart", {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
     });
   },
 };
