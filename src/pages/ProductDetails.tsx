@@ -31,7 +31,14 @@ function ProductDetails() {
         setLoading(false);
         return;
       }
+      const uuidPattern =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+      if (!uuidPattern.test(id)) {
+        setError("Invalid product ID. Please select a product from the catalog.");
+        setLoading(false);
+        return;
+      }
       try {
         const data = await productApi.get<Product>(
           `/api/v1/products/${id}`
