@@ -226,29 +226,42 @@ export interface OrderResponse {
   items: OrderItemResponse[];
 }
 
-export interface OrderItemResponse {
-  id: string;
-  order_id: string;
-  product_id: string;
-  product_name: string;
-  unit_price: string;
-  quantity: number;
-}
-
-export interface OrderResponse {
-  id: string;
-  user_id: string;
-  status: string;
-  total_amount: string;
-  items: OrderItemResponse[];
-}
-
 export interface OrderSummaryResponse {
   id: string;
   user_id: string;
   status: string;
   total_amount: string;
   created_at: string;
+}
+
+export interface CheckoutSessionResponse {
+  payment_id: string;
+  order_id: string;
+  amount: string;
+  status: string;
+  provider_order_id: string;
+  provider_key_id: string;
+  currency: string;
+}
+
+export interface CreateOrderResponse {
+  order: OrderResponse;
+  checkout: CheckoutSessionResponse;
+}
+
+export interface VerifyOrderPaymentRequest {
+  payment_id: string;
+  provider_order_id: string;
+  provider_payment_id: string;
+  signature: string;
+}
+
+export interface VerifyOrderPaymentResponse {
+  order_id: string;
+  order_status: string;
+  payment_id: string;
+  payment_status: string;
+  message: string;
 }
 // ---------- Authentication API ----------
 
@@ -316,8 +329,8 @@ export const authApi = {
 // ---------- Order API ----------
 
 export const orderApi = {
-  createOrder(accessToken: string): Promise<OrderResponse> {
-    return request<OrderResponse>(
+  createOrder(accessToken: string): Promise<CreateOrderResponse> {
+    return request<CreateOrderResponse>(
       ORDER_SERVICE_URL,
       "/api/v1/orders",
       {
@@ -340,6 +353,24 @@ export const orderApi = {
     }
   );
 },
+  verifyPayment(
+    accessToken: string,
+    orderId: string,
+    payload: VerifyOrderPaymentRequest
+  ): Promise<VerifyOrderPaymentResponse> {
+    return request<VerifyOrderPaymentResponse>(
+      ORDER_SERVICE_URL,
+      `/api/v1/orders/${encodeURIComponent(orderId)}/verify-payment`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+  },
+
   getOrder(
     accessToken: string,
     orderId: string
