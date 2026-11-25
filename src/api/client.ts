@@ -1,17 +1,17 @@
 const PRODUCT_SERVICE_URL =
-  import.meta.env.VITE_PRODUCT_SERVICE_URL || "http://localhost:8003";
+  import.meta.env.VITE_PRODUCT_SERVICE_URL ?? "http://localhost:8003";
 
 const AUTH_SERVICE_URL =
-  import.meta.env.VITE_AUTH_SERVICE_URL || "http://localhost:8001";
+  import.meta.env.VITE_AUTH_SERVICE_URL ?? "http://localhost:8001";
 
 const CART_SERVICE_URL =
-  import.meta.env.VITE_CART_SERVICE_URL || "http://localhost:8005";
+  import.meta.env.VITE_CART_SERVICE_URL ?? "http://localhost:8005";
 
 const ORDER_SERVICE_URL =
-  import.meta.env.VITE_ORDER_SERVICE_URL || "http://localhost:8006";
+  import.meta.env.VITE_ORDER_SERVICE_URL ?? "http://localhost:8006";
 
 const USER_SERVICE_URL =
-  import.meta.env.VITE_USER_SERVICE_URL || "http://localhost:8002";
+  import.meta.env.VITE_USER_SERVICE_URL ?? "http://localhost:8002";
   // ---------- API Types ----------
 
 export interface RegisterRequest {
